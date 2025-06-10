@@ -4,9 +4,9 @@
 >
 > All content is in Spanish, as it was written for academic use and submission.
 
-# Informe sobre decompilation
+# Informe sobre Decompilación
 
-El presente repositorio contiene toda la información correspondiente al informa realizado sobre [Decompilación](./report.pdf) para la materia _Lenguajes y Compiladores_ de 5to año de la Licenciatura en Ciencias de la Computación de FAMAF durante el año 2025.
+El presente repositorio contiene toda la información correspondiente al informe realizado sobre [Decompilación](./report.pdf) para la materia _Lenguajes y Compiladores_ de 5to año de la Licenciatura en Ciencias de la Computación de FAMAF durante el año 2025.
 
 ## Miembros del equipo
 
