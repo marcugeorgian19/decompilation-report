@@ -3,10 +3,23 @@
 \usepackage[spanish]{babel}
 \usepackage[T1]{fontenc}
 \usepackage{graphicx}
+\usepackage{wrapfig}
+\usepackage{geometry}
 \usepackage{hyperref}
 \usepackage{url}
+\usepackage{minted}
+\usepackage{inconsolata}
+\usepackage{caption}
 
 \graphicspath{ {./img/} }
+\geometry{
+  a4paper,         % or letterpaper
+  textwidth=15cm,  % llncs has 12.2cm
+  textheight=24cm, % llncs has 19.3cm
+  heightrounded,   % integer number of lines
+  hratio=1:1,      % horizontally centered
+  vratio=2:3,      % not vertically centered
+}
 
 \begin{document}
 
@@ -61,7 +74,7 @@ o protección utilizadas para dificultar el uso de este tipo de herramientas.
 Por estas razones, dentro del área se han explorado diversas implementaciones para abordar la decompilación, 
 que van desde la recuperación precisa de la lógica que un programa tiene, hasta la generación de 
 representaciones abstractas que se aproximen al programa original, a menudo dejando ciertas ambigüedades 
-que requiere intervención o interpretación por parte del usuario.
+que requieren intervención o interpretación por parte del usuario.
 
 Este informe tiene como objetivo presentar un marco teórico que permita entender los fundamentos de la 
 decompilación, los distintos enfoques que se han llevado a cabo para implementar un decompilador, e 
@@ -111,6 +124,15 @@ operativo \textit{DOS} \cite{cifuentes-dcc}. Su diseño se organiza en tres comp
 con un rol específico dentro del proceso de decompilación.
 
 \subsection{Front-end}
+\begin{wrapfigure}{r}{0.3\textwidth}
+  \vspace{-15pt}
+  \centering
+  \includegraphics[width=0.3\textwidth]{frontend-phases.png}
+  \caption{Fases del Front-end}
+  \label{fig: frontend-phases}
+  \vspace{-15pt}
+\end{wrapfigure}
+
 Este módulo será dependiente de la arquitectura del procesador, y es responsable de las tareas iniciales 
 de desensamblado y análisis del binario. Tiene como principal objetivo convertir el código máquina en 
 una representación intermedia de bajo nivel, preservando la semántica de las instrucciones originales.
@@ -118,7 +140,7 @@ Dentro del módulo tendremos varias etapas: la carga del binario en memoria virt
 el desensamblado de instrucciones (\textit{parser}), el análisis semántico de instrucciones
 (\textit{semantic analysis}), la creación de una representación intermedia del programa y la generación
 del \textit{grafo de control de flujo} (\textit{CFG}). Estas etapas pueden verse gráficamente 
-en la Figura 1.
+en la \autoref{fig: frontend-phases}.
 
 Una vez se tiene el binario en memoria, el \textit{parser} comienza su trabajo convirtiendo las
 instrucciones binarias en assembler. Esta conversión es secuencial y directa, excepto cuando se tienen
@@ -130,30 +152,47 @@ Una vez desensambladas las rutas de ejecución, se procede a construir una repre
 del código. Lo que se realiza es hacer una pseudo-instrucción por cada instrucción en assembler.
 Por ejemplo, si se tiene la instrucción \verb|rep movs|, se mapea a la pseudo-instrucción
 \verb|rep_movs|. Esta representación es luego usada para construir el grafo de control de flujo
-(CFG) que describe las relaciones entre los bloques del programa.
+que describe las relaciones entre los bloques del programa.
 
 Luego, se lleva a cabo lo que se llama “semantic analysis”, en donde se busca reconocer 
 \textit{idioms}\footnote{Un idiom es un patrón típico de instrucciones de bajo nivel que representa una 
 operación semántica conocida.}. Estos \textit{idioms} se traducen a instrucciones intermedias más 
-abstractas y legibles como puede verse en el ejemplo de la Figura 2.
+abstractas y legibles como puede verse en el ejemplo de la \autoref{fig: idioms-example}.
+
+\begin{wrapfigure}{l}{0.33\textwidth}
+  \centering
+  \includegraphics[width=0.33\textwidth]{idioms-example.png}
+  \caption{Ejemplos de \textit{idioms} y sus transformaciones}
+  \label{fig: idioms-example}
+  \vspace{-15pt}
+\end{wrapfigure}
 
 Una vez identificados los \textit{idioms}, se aplica \textit{propagación de tipos} para identificar 
 variables complejas como enteros largos o estructuras. Lo que se hace es deducir qué tipo de dato 
 representa cada conjunto de accesos a memorias o registros para unificarlos como una sola variable 
 de alto nivel. Por ejemplo, en una arquitectura de $16$ bits, si en assembler tenemos que se refiere 
-a una variable de tipo \textit{long} ($32$ bits) de forma separada (debido a su largo se necesitan dos 
+a una variable de tipo \verb|long| ($32$ bits) de forma separada (debido a su largo se necesitan dos 
 palabras de $16$ bits) lo que se hace es unificar ambas referencias en una sola, tratándola como 
 una sola entidad lógica.
 
-Finalmente, se lleva a cabo una optimización del grafo de control de flujo (CFG) donde se busca 
+Finalmente, se lleva a cabo una optimización del grafo de control de flujo donde se busca 
 simplificar el flujo eliminando redundancias y acortando saltos.
 
 \subsection{Máquina de Decompilación Universal (UDM)}
+\begin{wrapfigure}{r}{0.35\textwidth}
+  \vspace{-15pt}
+  \centering
+  \includegraphics[width=0.35\textwidth]{udm-phases.png}
+  \caption{Fases de la UDM}
+  \label{fig: udm-phases}
+  \vspace{-20pt}
+\end{wrapfigure}
+
 Este módulo constituye el núcleo del decompilador, y se va a encargar de transformar la
 representación intermedia de bajo nivel generada por el \textit{front-end} en una forma más abstracta
 y estructurada (para acercarnos al lenguaje de alto nivel deseado). Su funcionamiento se divide en
 $2$ subfases: \textit{análisis de flujo de datos} y \textit{análisis de flujo de control}, las cuales 
-pueden visualizarse en la Figura 3.
+pueden visualizarse en la \autoref{fig: udm-phases}.
 
 Es importante destacar que este módulo se abstrae de la arquitectura del procesador y del lenguaje 
 objetivo de alto nivel (de allí la palabra “Universal” en su nombre), pudiendo usar este módulo
@@ -169,9 +208,18 @@ una expresión de alto nivel equivalente (esto depende del tipo de flag que la i
 En caso de tratarse de una flag que puede ser traducida a alto nivel, se realiza un análisis de uso 
 y definición (\textit{use/definition chain}) para identificar la instrucción que definió la flag y 
 la que usó la flag. Esta identificación permite luego traducir ambas instrucciones en una instrucción de 
-alto nivel semánticamente equivalente como puede verse en el ejemplo de la Figura 4.
+alto nivel semánticamente equivalente como puede verse en el ejemplo de la \autoref{fig: flags-delete}.
 
-La semántica de la instrucción \verb|JCOND| de la Figura 4 es equivalente a realizar 
+\begin{wrapfigure}{l}{0.5\textwidth}
+  \vspace{-15pt}
+  \centering
+  \includegraphics[width=0.5\textwidth]{flags-delete.png}
+  \caption{Ejemplo de código con flags}
+  \label{fig: flags-delete}
+  \vspace{-15pt}
+\end{wrapfigure}
+
+La semántica de la instrucción \verb|JCOND| de la \autoref{fig: flags-delete} es equivalente a realizar 
 \verb|cmp+jg| en una sola expresión, sin necesidad de utilizar de manera explícita las flags. 
 Esto es porque \verb|jg| usa las flags que \verb|cmp| setea al ejecutarse.
 
@@ -184,6 +232,14 @@ registro temporal por una sola instrucción que semánticamente haga lo mismo.
 Por ejemplo, si se tiene que un registro temporal contiene el resultado de \verb|5+bx| y se 
 usa inmediatamente después, se elimina el registro y se expresa directamente la operación.
 
+\begin{figure}[!htb]
+  \centering
+  \includegraphics[width=0.7\textwidth]{optimized-cfg.png}
+  \caption{Grafos optimizados y reestructurados}
+  \label{fig: optimized-cfg}
+  \vspace{-15pt}
+\end{figure}
+
 \paragraph{Análisis de flujo de control} En esta otra subfase se reestructura el CFG del programa para 
 transformarlo en estructuras de control genéricas de alto nivel como \verb|if … then[… else]|, 
 \verb|while()| o \verb|repeat…until()|, etc. Para hacer esto se utiliza un algoritmo para detectar 
@@ -191,14 +247,23 @@ en el CFG subgrafos que se puedan mapear a esas estructuras. Si algún subgrafo 
 utiliza goto como último recurso.
 
 Luego de hacer esta reestructuración, se optimizan los grafos para tener condiciones compuestas 
-como \verb+if(a || b)+ en lugar de hacer uso de if anidados (Figura 5).
+como \verb+if(a || b)+ en lugar de hacer uso de \verb|if| anidados (\autoref{fig: optimized-cfg}).
 
 \subsection{Back-end}
 Finalmente, este último módulo pretende generar el código en un lenguaje de alto nivel. 
 Este módulo depende del lenguaje que se quiera generar, ya que tiene que adaptar las representaciones 
 obtenidas por el UDM a construcciones sintácticas específicas del lenguaje. Podemos diferenciar 
 el trabajo de este módulo en dos subfases: \textit{reestructuración} (opcional) y 
-\textit{generación de código} (Figura 6).
+\textit{generación de código} (\autoref{fig: backend-phases}).
+
+\begin{wrapfigure}{r}{0.35\textwidth}
+  \vspace{-25pt}
+  \centering
+  \includegraphics[width=0.35\textwidth]{backend-phases.png}
+  \caption{Fases del Back-end}
+  \label{fig: backend-phases}
+  \vspace{-50pt}
+\end{wrapfigure}
 
 \paragraph{Reestructuración} Esta subfase es opcional y en ella se reestructura el grafo devuelto por 
 la UDM, adaptándolo a las construcciones que el lenguaje destino pueda tener. La razón de que sea 
@@ -251,7 +316,7 @@ enfoques de decompilación más avanzados como \textit{dynamic binary lifting} (
 en la librería Binrec\footnote{Librería open source que funciona muy bien para binarios en la 
 práctica, pasando muchos de los benchmarks para frameworks de este tipo. 
 Disponible en: \url{https://github.com/trailofbits/binrec-tob}.}) \cite{binrec}. A diferencia de 
-los métodos estáticos, las herramientas de DBT (dynamic binary translation) analizan ejecuciones 
+los métodos estáticos, las herramientas de DBT (\textit{dynamic binary translation}) analizan ejecuciones 
 de un programa, manejando componentes como código y datos mezclados. Binrec transforma código 
 a una versión intermedia de alto nivel llamada LLVM IR, que actúa como abstracción, para 
 luego transformarlo y bajarlo de nuevo a binario.
@@ -263,7 +328,7 @@ aplicar \textit{incremental lifting}, lo que permite refinar el binario según s
 
 \section{Herramientas Actuales y Caso de Estudio}
 Durante la última década, la investigación y el desarrollo de decompiladores y de análisis de binarios 
-avanzó notablemente. Un hito clave para ello fue la publicación de \textit{Ghidra} por parte de 
+avanzó notablemente. Un hito clave para ello fue la publicación de Ghidra por parte de 
 la Dirección en Investigación de la NSA (National Security Agency) el 4 de abril de 2019 \cite{ghidra-book},
 haciendo posible un análisis profundo y detallado de binarios sin necesidad de requerir herramientas 
 comerciales de alto costo como \textit{IDA Pro}.
@@ -276,9 +341,9 @@ necesidad de requerir una decompilación en un lenguaje de alto nivel. Estas her
 de flujo y detección de vulnerabilidades.
 
 Las herramientas de decompilación y análisis de binarios más relevantes en la actualidad son 
-\textit{Ghidra}\footnote{Plataforma open source desarrollada por la NSA que incluye un desensamblador, 
+Ghidra\footnote{Plataforma open source desarrollada por la NSA que incluye un desensamblador, 
 un decompilador a C y herramientas de análisis estático sobre múltiples arquitecturas. Disponible 
-en \url{https://github.com/NationalSecurityAgency/ghidra}.}, \textit{IDA Pro}\footnote{Herramienta 
+en \url{https://github.com/NationalSecurityAgency/ghidra}.}, IDA Pro\footnote{Herramienta 
 comercial de análisis binario que combina desensamblado interactivo con análisis avanzado y 
 opcionalmente el decompilador Hex-Rays para obtener pseudocódigo en C. Más información 
 en \url{https://hex-rays.com/ida-pro}.}, \textit{RetDec}\footnote{Decompilador modular open source 
@@ -295,12 +360,12 @@ Disponible en \url{https://github.com/angr/angr}.} y \textit{radare2}\footnote{C
 open source para análisis forense e ingeniería inversa a bajo nivel, con soporte para desensamblado,
 depuración, scripting y modificación de binarios. Disponible en: 
 \url{https://github.com/radareorg/radare2}.}. En el presente trabajo, nos centraremos en 
-\textit{Ghidra} para nuestro caso de estudio, aplicado a un programa simple.
+Ghidra para nuestro caso de estudio, aplicado a un programa simple.
 
-El programa considerado implementa Fibonacci en C++ (Figura 7) y el binario correspondiente contiene 
+El programa considerado implementa Fibonacci en C++ (\autoref{apendice:fibonacci} del apéndice) y el binario correspondiente contiene 
 la información de depuración\footnote{Se obtiene compilando sin optimización y con la flag \texttt{-g}.}
-para mejorar la legibilidad de los resultados de la decompilación. Usando la plataforma de \textit{Ghidra},
-se obtienen dos funciones principales a tener en cuenta, \verb|main| (Figura 8) y \verb|swap<>| (Figura 9).
+para mejorar la legibilidad de los resultados de la decompilación. Usando la plataforma de Ghidra,
+se obtienen dos funciones principales a tener en cuenta, \verb|main| (\autoref{apendice:main-decompilation-with-depuration-info} del apéndice) y \verb|swap<>| (\autoref{apendice:swap-decompilation-with-depuration-info} del apéndice).
 En ambas funciones se puede observar que al principio de su cuerpo se realiza la declaración de una variable 
 aleatoria (\verb|local_10| y \verb|lVar1|) y al final se corrobora que ese valor se haya mantenido. 
 Este es un ejemplo de funcionalidades agregadas por el compilador a nuestro código fuente debido a que 
@@ -316,13 +381,13 @@ llamada a la función \verb|swap|. Notar que las funciones y variables mantienen
 información que se dejó al compilar con información de depuración.
 
 Finalmente, en cuanto a la función \verb|swap|, puede observarse que es una función donde los parámetros 
-se pasan por referencia (en particular, \textit{Ghidra} muestra que se pasan los punteros a lo valores)
+se pasan por referencia (en particular, Ghidra muestra que se pasan los punteros a lo valores)
 y se hace el swap de estos con tres instrucciones de asignación.
 
 Gracias a este caso de uso simple, puede notarse el potencial e importancia de los decompiladores 
 al poder reconstruir un programa con una semántica equivalente al programa original e incluso buscando 
 equivalencia sintáctica en algunas partes si se dispone de la información (es decir, no es información 
-que se desecha durante la compilación u optimizaciones en la misma). Usualmente \textit{Ghidra}
+que se desecha durante la compilación u optimizaciones en la misma). Usualmente Ghidra
 y las demás herramientas se utilizan para el análisis de binarios más sofisticados y grandes, que 
 requieren un análisis exhaustivo y preciso para, por ejemplo, la identificación de vulnerabilidades.
 
@@ -346,5 +411,106 @@ que utilizan estos modelos para mejorar la legibilidad y comprensión del códig
 
 \bibliographystyle{splncs04}
 \bibliography{references}
+
+\section*{Apéndice}
+
+\begin{minipage}{0.95\linewidth}
+\begin{minted}[linenos]{c}
+#include <iostream>
+
+int main() {
+  std::cout << "Enter two natural values: ";
+  std::cout.flush();
+
+  long long n, m;
+  std::cin >> n >> m;
+
+  std::cout << "Fibonacci sequence (first " << n << " values modulo " << m
+            << "):\n";
+  long long bef = 0, aft = 1;
+  for (int i = 0; i < n; i++) {
+    std::cout << "\tfib[" << i << "] = " << bef << '\n';
+    std::swap(bef, aft);
+    aft = (aft + bef) % m;
+  }
+
+  return 0;
+}
+\end{minted}
+\captionof{figure}{Implementación de Fibonacci en C++}
+\label{apendice:fibonacci}
+\end{minipage}
+
+\begin{minipage}{0.95\linewidth}
+\begin{minted}[linenos]{c}
+int main(void)
+{
+  istream *this;
+  ostream *poVar1;
+  long in_FS_OFFSET;
+  int i;
+  longlong n;
+  longlong m;
+  longlong bef;
+  longlong aft;
+  long local_10;
+  
+  local_10 = *(long *)(in_FS_OFFSET + 0x28);
+  std::operator<<((ostream *)std::cout,"Enter two natural values: ");
+  std::ostream::flush();
+  this = (istream *)std::istream::operator>>((istream *)std::cin,&n);
+  std::istream::operator>>(this,&m);
+  poVar1 = std::operator<<((ostream *)std::cout,"Fibonacci sequence (first ");
+  poVar1 = (ostream *)std::ostream::operator<<(poVar1,n);
+  poVar1 = std::operator<<(poVar1," values modulo ");
+  poVar1 = (ostream *)std::ostream::operator<<(poVar1,m);
+  std::operator<<(poVar1,"):\n");
+  bef = 0;
+  aft = 1;
+  for (i = 0; i < n; i = i + 1) {
+    poVar1 = std::operator<<((ostream *)std::cout,"\tfib[");
+    poVar1 = (ostream *)std::ostream::operator<<(poVar1,i);
+    poVar1 = std::operator<<(poVar1,"] = ");
+    poVar1 = (ostream *)std::ostream::operator<<(poVar1,bef);
+    std::operator<<(poVar1,'\n');
+    std::swap<>(&bef,&aft);
+    aft = (bef + aft) % m;
+  }
+  if (local_10 != *(long *)(in_FS_OFFSET + 0x28)) {
+                    /* WARNING: Subroutine does not return */
+    __stack_chk_fail();
+  }
+  return 0;
+}
+\end{minted}
+\captionof{figure}{Decompilación propuesta por Ghidra para \texttt{main} de Fibonacci con información de depuración}
+\label{apendice:main-decompilation-with-depuration-info}
+\end{minipage}
+
+\begin{minipage}{0.95\linewidth}
+\begin{minted}[linenos]{c}
+void std::swap<>(longlong *__a,longlong *__b)
+{
+  long lVar1;
+  longlong lVar2;
+  long in_FS_OFFSET;
+  longlong *__b_local;
+  longlong *__a_local;
+  longlong __tmp;
+  
+  lVar1 = *(long *)(in_FS_OFFSET + 0x28);
+  lVar2 = *__a;
+  *__a = *__b;
+  *__b = lVar2;
+  if (lVar1 != *(long *)(in_FS_OFFSET + 0x28)) {
+                    /* WARNING: Subroutine does not return */
+    __stack_chk_fail();
+  }
+  return;
+}
+\end{minted}
+\captionof{figure}{Decompilación propuesta por Ghidra para \texttt{swap} de Fibonacci con información de depuración}
+\label{apendice:swap-decompilation-with-depuration-info}
+\end{minipage}
 
 \end{document}
